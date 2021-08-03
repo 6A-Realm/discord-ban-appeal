@@ -6,7 +6,7 @@ import TextField from "@material-ui/core/TextField";
 import Grid from "@material-ui/core/Grid";
 import Button from "@material-ui/core/Button";
 import {Redirect} from "react-router-dom";
-// import {createJwt} from "../Helpers/jwt-helpers";
+import {createJwt} from "../Helpers/jwt-helpers";
 
 const axios = require("axios")
 
@@ -20,6 +20,47 @@ class Form extends Component {
             user: {id: null, avatar: null, username: null, discriminator: null},
             notBanned: false
         }
+
+        this.updateState = this.updateState.bind(this);
+        this.handleSubmit = this.handleSubmit.bind(this);
+
+    }
+
+
+    updateState(e) {
+        this.setState({[e.target.name]: e.target.value});
+    }
+
+    handleSubmit(e) {
+        var url = process.env.REACT_APP_WEBHOOK_URL;
+        const now = new Date();
+        let unbanInfo = {
+            userId: this.state.user.id,
+            email: this.state.user.email
+        };
+        let unbanUrl = window.location.origin + "/.netlify/functions/unban";
+        var embed = [{
+            title: "New Ban Appeal Received",
+            type: "rich",
+            author: {
+                name: this.state.user.username,
+                icon_url: this.state.avatar_url
+            },
+            description: `**Username**: <@${this.state.user.id}> (${this.state.user.username}#${this.state.user.discriminator})\n` +
+                "**Why were you banned?**\n" + this.state.ban_reason + "\n\n" +
+                "**Why do you feel you should be unbanned?**\n" + this.state.unban_reason + "\n\n" +
+                "**What will you do to avoid being banned in the future?**\n" + this.state.future_behavior + "\n\n " +
+                "**Actions**\n" +
+                `[Approve appeal and unban user](${unbanUrl}?token=${encodeURIComponent(createJwt(unbanInfo))})`,
+            timestamp: now.toISOString()
+        }];
+        axios.post(url, {embeds: embed}).then(() => {
+            this.setState({success: true})
+        }).catch(alert)
+        e.preventDefault();
+    }
+
+    componentDidMount() {
         oauth.getUser(localStorage.getItem("access_token"))
             .then((user) => {
                 if (!process.env.REACT_APP_SKIP_BAN_CHECK) {
@@ -34,42 +75,6 @@ class Form extends Component {
                     this.setState({avatar_url: "https://cdn.discordapp.com/avatars/" + this.state.user.id + "/" + this.state.user.avatar + ".png"})
                 }
             });
-        this.updateState = this.updateState.bind(this);
-        this.handleSubmit = this.handleSubmit.bind(this);
-
-    }
-
-
-    updateState(e) {
-        this.setState({[e.target.name]: e.target.value});
-    }
-
-    handleSubmit(e) {
-        var url = process.env.REACT_APP_WEBHOOK_URL;
-        const now = new Date();
-//         let unbanInfo = {
-//             userId: this.state.user.id
-//         };
-//         let unbanUrl = window.location.origin + "/.netlify/functions/unban";
-        var embed = [{
-            title: "New Ban Appeal Received",
-            type: "rich",
-            author: {
-                name: this.state.user.username,
-                icon_url: this.state.avatar_url
-            },
-            description: `**Username**: <@${this.state.user.id}> (${this.state.user.username}#${this.state.user.discriminator})\n` +
-                "**Why were you banned?**\n" + this.state.ban_reason + "\n\n" +
-                "**Why do you feel you should be unbanned?**\n" + this.state.unban_reason + "\n\n" +
-                "**What will you do to avoid being banned in the future?**\n" + this.state.future_behavior + "\n\n ",
-//                 "**Actions**\n" +
-//                 `[Approve appeal and unban user](${unbanUrl}?token=${encodeURIComponent(createJwt(unbanInfo))})`,
-            timestamp: now.toISOString()
-        }];
-        axios.post(url, {embeds: embed}).then(() => {
-            this.setState({success: true})
-        }).catch(alert)
-        e.preventDefault();
     }
 
     render() {
